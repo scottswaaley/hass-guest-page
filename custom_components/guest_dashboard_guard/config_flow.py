@@ -95,8 +95,8 @@ class GuestDashboardGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _get_users(self) -> list[dict[str, str]]:
         """Get list of users from Home Assistant."""
         users = []
-        auth_provider = self.hass.auth
-        for user in await auth_provider.async_get_users():
+        user_collection = await self.hass.auth.async_get_users()
+        for user in user_collection:
             if not user.system_generated:
                 users.append({"id": user.id, "name": user.name or user.id})
         return users
@@ -116,7 +116,11 @@ class GuestDashboardGuardOptionsFlow(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            # Update the config entry data, not options
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data=user_input
+            )
+            return self.async_create_entry(title="", data={})
 
         # Get list of users for the dropdown
         users = await self._get_users()
@@ -166,8 +170,8 @@ class GuestDashboardGuardOptionsFlow(config_entries.OptionsFlow):
     async def _get_users(self) -> list[dict[str, str]]:
         """Get list of users from Home Assistant."""
         users = []
-        auth_provider = self.hass.auth
-        for user in await auth_provider.async_get_users():
+        user_collection = await self.hass.auth.async_get_users()
+        for user in user_collection:
             if not user.system_generated:
                 users.append({"id": user.id, "name": user.name or user.id})
         return users
