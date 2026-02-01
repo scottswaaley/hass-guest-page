@@ -12,6 +12,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.components.lovelace import (
     DOMAIN as LOVELACE_DOMAIN,
 )
+from homeassistant.components.lovelace.const import LOVELACE_DATA
+from homeassistant.components.frontend import DATA_PANELS
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -89,20 +91,17 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(f"Error communicating with Home Assistant: {err}")
 
     async def _get_dashboards(self) -> list[dict[str, Any]]:
-        """Get all dashboards from Home Assistant."""
+        """Get all dashboards from Home Assistant (Lovelace + Frontend Panels)."""
         dashboards = []
 
+        # Part 1: Get Lovelace dashboards (storage/YAML mode)
         try:
-            # Use the storage collection to get all registered dashboards
-            from homeassistant.components.lovelace import dashboard
+            # Try the correct LOVELACE_DATA constant first
+            if LOVELACE_DATA in self.hass.data:
+                lovelace_data = self.hass.data[LOVELACE_DATA]
+                _LOGGER.debug("Found LOVELACE_DATA, type: %s", type(lovelace_data))
 
-            # Get the dashboard storage collection
-            if LOVELACE_DOMAIN in self.hass.data:
-                lovelace_data = self.hass.data[LOVELACE_DOMAIN]
-
-                # Try to iterate through the dashboards
                 if hasattr(lovelace_data, "dashboards"):
-                    # Newer HA versions with dashboards attribute
                     for url_path, dash_config in lovelace_data.dashboards.items():
                         config_data = getattr(dash_config, "config", None)
                         title = config_data.get("title", url_path) if config_data and isinstance(config_data, dict) else url_path
@@ -110,9 +109,24 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
                             "url_path": url_path if url_path != "lovelace" else None,
                             "title": title,
                             "mode": getattr(dash_config, "mode", "storage") if hasattr(dash_config, "mode") else "storage",
+                            "type": "lovelace",
+                        })
+            # Fallback to old LOVELACE_DOMAIN method for compatibility
+            elif LOVELACE_DOMAIN in self.hass.data:
+                lovelace_data = self.hass.data[LOVELACE_DOMAIN]
+                _LOGGER.debug("Found LOVELACE_DOMAIN (fallback), type: %s", type(lovelace_data))
+
+                if hasattr(lovelace_data, "dashboards"):
+                    for url_path, dash_config in lovelace_data.dashboards.items():
+                        config_data = getattr(dash_config, "config", None)
+                        title = config_data.get("title", url_path) if config_data and isinstance(config_data, dict) else url_path
+                        dashboards.append({
+                            "url_path": url_path if url_path != "lovelace" else None,
+                            "title": title,
+                            "mode": getattr(dash_config, "mode", "storage") if hasattr(dash_config, "mode") else "storage",
+                            "type": "lovelace",
                         })
                 elif isinstance(lovelace_data, dict):
-                    # Dictionary-based storage
                     for url_path, dash_config in lovelace_data.items():
                         config_data = getattr(dash_config, "config", None) if dash_config else None
                         title = config_data.get("title", url_path) if config_data and isinstance(config_data, dict) else url_path
@@ -120,27 +134,42 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
                             "url_path": url_path if url_path != "lovelace" else None,
                             "title": title,
                             "mode": getattr(dash_config, "mode", "storage") if dash_config and hasattr(dash_config, "mode") else "storage",
+                            "type": "lovelace",
                         })
-                else:
-                    _LOGGER.debug("Lovelace data type: %s", type(lovelace_data))
-
-            # Also try to get dashboards from lovelace storage collection
-            try:
-                dashboard_storage = self.hass.data.get("lovelace_dashboards")
-                if dashboard_storage:
-                    for dash_id, dash_data in dashboard_storage.items():
-                        # Avoid duplicates
-                        if not any(d["url_path"] == dash_id for d in dashboards):
-                            dashboards.append({
-                                "url_path": dash_id if dash_id != "lovelace" else None,
-                                "title": dash_data.get("title", dash_id) if isinstance(dash_data, dict) else dash_id,
-                                "mode": dash_data.get("mode", "storage") if isinstance(dash_data, dict) else "storage",
-                            })
-            except Exception as e:
-                _LOGGER.debug("Could not access lovelace_dashboards: %s", e)
-
         except Exception as e:
-            _LOGGER.exception("Error getting dashboards: %s", e)
+            _LOGGER.exception("Error getting Lovelace dashboards: %s", e)
+
+        # Part 2: Get Frontend Panel dashboards (Energy, Todo, Home, Lights, Climate, Security)
+        try:
+            if DATA_PANELS in self.hass.data:
+                panels = self.hass.data[DATA_PANELS]
+                _LOGGER.debug("Found DATA_PANELS with %d panels", len(panels))
+
+                # Skip non-dashboard panels
+                skip_panels = {
+                    'config', 'developer-tools', 'profile', 'media-browser',
+                    'logbook', 'history'  # Optional: can include map if you want
+                }
+
+                for panel_key, panel in panels.items():
+                    if panel_key in skip_panels:
+                        continue
+
+                    panel_info = panel.to_response()
+
+                    # Avoid duplicates with Lovelace dashboards
+                    if not any(d.get("url_path") == panel_key for d in dashboards):
+                        dashboards.append({
+                            "url_path": panel_key,
+                            "title": panel_info.get("title", panel_key),
+                            "mode": "panel",
+                            "type": "frontend_panel",
+                            "component_name": panel_info.get("component_name"),
+                            "require_admin": panel_info.get("require_admin", False),
+                        })
+                        _LOGGER.debug("Added frontend panel: %s (%s)", panel_key, panel_info.get("title"))
+        except Exception as e:
+            _LOGGER.exception("Error getting frontend panels: %s", e)
 
         # Always add at least the default dashboard if none found
         if not dashboards:
@@ -149,6 +178,7 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
                 "url_path": None,
                 "title": "Home",
                 "mode": "storage",
+                "type": "lovelace",
             })
 
         _LOGGER.info("Detected %d dashboard(s): %s", len(dashboards), [d["title"] for d in dashboards])
@@ -184,6 +214,11 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
         # all users can see it by default. This is the violation we're checking for.
 
         dashboard_key = dashboard["url_path"] or "default"
+
+        # Frontend panels with require_admin are already protected
+        if dashboard.get("require_admin", False):
+            _LOGGER.debug("Dashboard %s requires admin, skipping check", dashboard_key)
+            return None
 
         # Try to get dashboard visibility settings
         visibility = await self._get_dashboard_visibility(dashboard)
