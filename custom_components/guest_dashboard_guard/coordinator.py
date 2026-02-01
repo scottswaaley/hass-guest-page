@@ -104,18 +104,22 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
                 if hasattr(lovelace_data, "dashboards"):
                     # Newer HA versions with dashboards attribute
                     for url_path, dash_config in lovelace_data.dashboards.items():
+                        config_data = getattr(dash_config, "config", None)
+                        title = config_data.get("title", url_path) if config_data and isinstance(config_data, dict) else url_path
                         dashboards.append({
                             "url_path": url_path if url_path != "lovelace" else None,
-                            "title": getattr(dash_config, "config", {}).get("title", url_path) if hasattr(dash_config, "config") else url_path,
+                            "title": title,
                             "mode": getattr(dash_config, "mode", "storage") if hasattr(dash_config, "mode") else "storage",
                         })
                 elif isinstance(lovelace_data, dict):
                     # Dictionary-based storage
                     for url_path, dash_config in lovelace_data.items():
+                        config_data = getattr(dash_config, "config", None) if dash_config else None
+                        title = config_data.get("title", url_path) if config_data and isinstance(config_data, dict) else url_path
                         dashboards.append({
                             "url_path": url_path if url_path != "lovelace" else None,
-                            "title": getattr(dash_config, "config", {}).get("title", url_path) if hasattr(dash_config, "config") else url_path,
-                            "mode": getattr(dash_config, "mode", "storage") if hasattr(dash_config, "mode") else "storage",
+                            "title": title,
+                            "mode": getattr(dash_config, "mode", "storage") if dash_config and hasattr(dash_config, "mode") else "storage",
                         })
                 else:
                     _LOGGER.debug("Lovelace data type: %s", type(lovelace_data))
