@@ -1,0 +1,30 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Guest Dashboard Guard",
+        "description": "Set up monitoring for dashboard guest access",
+        "data": {
+          "action_mode": "Action Mode",
+          "guest_detection": "Guest Detection Method",
+          "guest_users": "Guest Users (if specific users selected)",
+          "check_interval": "Check Interval (seconds)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure Guest Dashboard Guard",
+        "description": "Update your dashboard monitoring settings",
+        "data": {
+          "action_mode": "Action Mode",
+          "guest_detection": "Guest Detection Method",
+          "guest_users": "Guest Users (if specific users selected)",
+          "check_interval": "Check Interval (seconds)"
+        }
+      }
+    }
+  }
+}
