@@ -22,6 +22,7 @@ from .const import (
     CONF_GUEST_DETECTION,
     CONF_GUEST_USERS,
     CONF_CHECK_INTERVAL,
+    CONF_IGNORED_DASHBOARDS,
     ACTION_REVOKE,
     GUEST_NON_ADMIN,
     GUEST_SPECIFIC_USERS,
@@ -139,46 +140,15 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
         except Exception as e:
             _LOGGER.exception("Error getting Lovelace dashboards: %s", e)
 
-        # Part 2: Get Frontend Panel dashboards (Energy, Todo, Home, Lights, Climate, Security)
+        # Part 2: Get Frontend Panel dashboards (All panels, user can filter via config)
         try:
             if DATA_PANELS in self.hass.data:
                 panels = self.hass.data[DATA_PANELS]
                 _LOGGER.debug("Found DATA_PANELS with %d panels", len(panels))
 
-                # Skip non-dashboard panels (admin tools, add-ons, config panels)
-                skip_panels = {
-                    'config', 'developer-tools', 'profile', 'media-browser',
-                    'logbook', 'history', 'map',
-                    # Add-ons and config panels
-                    'hassio', 'supervisor',
-                }
-
-                # Panel component names that are dashboards (not admin tools)
-                dashboard_components = {
-                    'lovelace',  # Lovelace dashboards
-                    'energy',    # Energy dashboard
-                    'todo',      # Todo lists
-                    'frontend',  # Built-in frontend panels (home, lights, climate, security)
-                    'calendar',  # Calendar panel
-                }
-
                 for panel_key, panel in panels.items():
-                    if panel_key in skip_panels:
-                        continue
-
                     panel_info = panel.to_response()
                     component_name = panel_info.get("component_name", "")
-
-                    # Only include panels that are actually dashboards
-                    # Skip add-ons (ha_addon_*), file editors, and other config tools
-                    if component_name.startswith("ha_addon_") or component_name == "hassio":
-                        _LOGGER.debug("Skipping add-on panel: %s (%s)", panel_key, panel_info.get("title"))
-                        continue
-
-                    # Only include known dashboard components
-                    if component_name not in dashboard_components:
-                        _LOGGER.debug("Skipping non-dashboard panel: %s (component: %s)", panel_key, component_name)
-                        continue
 
                     # Avoid duplicates with Lovelace dashboards
                     if not any(d.get("url_path") == panel_key for d in dashboards):
@@ -206,6 +176,20 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("Skipping duplicate dashboard: %s (%s)", path_key, dashboard.get("title"))
 
         dashboards = unique_dashboards
+
+        # Filter out ignored dashboards based on user configuration
+        ignored_dashboards = set(self.config_entry.data.get(CONF_IGNORED_DASHBOARDS, []))
+        if ignored_dashboards:
+            _LOGGER.debug("Ignoring configured dashboards: %s", ignored_dashboards)
+            filtered_dashboards = []
+            for dashboard in dashboards:
+                # Check both url_path and "default" key for None url_path
+                path_key = dashboard["url_path"] if dashboard["url_path"] is not None else "default"
+                if path_key not in ignored_dashboards:
+                    filtered_dashboards.append(dashboard)
+                else:
+                    _LOGGER.debug("Ignoring dashboard: %s (%s)", path_key, dashboard.get("title"))
+            dashboards = filtered_dashboards
 
         # Always add at least the default dashboard if none found
         if not dashboards:

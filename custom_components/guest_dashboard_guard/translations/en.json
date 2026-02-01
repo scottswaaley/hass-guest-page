@@ -8,6 +8,7 @@
           "action_mode": "Action Mode",
           "guest_detection": "Guest Detection Method",
           "guest_users": "Guest Users (if specific users selected)",
+          "ignored_dashboards": "Dashboards/Panels to Ignore (e.g., add-ons, admin tools)",
           "check_interval": "Check Interval (seconds)"
         }
       }
@@ -22,6 +23,7 @@
           "action_mode": "Action Mode",
           "guest_detection": "Guest Detection Method",
           "guest_users": "Guest Users (if specific users selected)",
+          "ignored_dashboards": "Dashboards/Panels to Ignore (e.g., add-ons, admin tools)",
           "check_interval": "Check Interval (seconds)"
         }
       }

@@ -7,6 +7,7 @@ CONF_ACTION_MODE = "action_mode"
 CONF_GUEST_DETECTION = "guest_detection"
 CONF_GUEST_USERS = "guest_users"
 CONF_CHECK_INTERVAL = "check_interval"
+CONF_IGNORED_DASHBOARDS = "ignored_dashboards"
 
 # Action modes
 ACTION_NOTIFY = "notify"
