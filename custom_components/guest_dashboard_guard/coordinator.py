@@ -91,32 +91,51 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
         """Get all dashboards from Home Assistant."""
         dashboards = []
 
-        # Get Lovelace dashboards
-        lovelace = self.hass.data.get(LOVELACE_DOMAIN)
-        if lovelace:
-            for url_path, config in lovelace.items():
-                dashboard_info = {
-                    "url_path": url_path if url_path != "lovelace" else None,
-                    "title": getattr(config, "config", {}).get("title", url_path),
-                    "mode": getattr(config, "mode", "storage"),
-                }
-                dashboards.append(dashboard_info)
+        # Get Lovelace dashboards using the proper API
+        try:
+            # Import lovelace storage helper
+            from homeassistant.components.lovelace import dashboard as lovelace_dashboard
 
-        # If no dashboards found via lovelace data, try alternative method
+            # Get all dashboards from lovelace
+            lovelace_data = self.hass.data.get(LOVELACE_DOMAIN)
+
+            if isinstance(lovelace_data, dict):
+                # If it's a dict, iterate over items
+                for url_path, config in lovelace_data.items():
+                    dashboard_info = {
+                        "url_path": url_path if url_path != "lovelace" else None,
+                        "title": getattr(config, "config", {}).get("title", url_path) if hasattr(config, "config") else url_path,
+                        "mode": getattr(config, "mode", "storage") if hasattr(config, "mode") else "storage",
+                    }
+                    dashboards.append(dashboard_info)
+            else:
+                # Try getting dashboards from registry
+                try:
+                    from homeassistant.components.lovelace import (
+                        DOMAIN as LOVELACE_DOMAIN_CONST,
+                    )
+
+                    # Access dashboard storage
+                    if hasattr(self.hass, "data") and LOVELACE_DOMAIN in self.hass.data:
+                        # Add default dashboard
+                        dashboards.append({
+                            "url_path": None,
+                            "title": "Home",
+                            "mode": "storage",
+                        })
+                except Exception as e:
+                    _LOGGER.debug("Could not access lovelace dashboards: %s", e)
+
+        except Exception as e:
+            _LOGGER.debug("Error getting dashboards from lovelace data: %s", e)
+
+        # Always add at least the default dashboard if none found
         if not dashboards:
-            # Try to get dashboard info via websocket API
-            try:
-                result = await self.hass.services.async_call(
-                    "lovelace",
-                    "get_dashboards",
-                    {},
-                    blocking=True,
-                    return_response=True,
-                )
-                if result:
-                    dashboards = result.get("dashboards", [])
-            except Exception as e:
-                _LOGGER.debug("Could not fetch dashboards via service call: %s", e)
+            dashboards.append({
+                "url_path": None,
+                "title": "Home",
+                "mode": "storage",
+            })
 
         return dashboards
 
