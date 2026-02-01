@@ -1,7 +1,7 @@
 """DataUpdateCoordinator for Guest Dashboard Guard."""
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 from typing import Any
 
@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.components.lovelace import (
     DOMAIN as LOVELACE_DOMAIN,
 )
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -80,7 +81,7 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
                 "dashboards_count": len(dashboards),
                 "guest_users_count": len(guest_users),
                 "violations": violations,
-                "last_check": self.hass.helpers.template.now(),
+                "last_check": dt_util.now(),
             }
 
         except Exception as err:
