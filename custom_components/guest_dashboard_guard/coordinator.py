@@ -106,11 +106,13 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
                     for url_path, dash_config in lovelace_data.dashboards.items():
                         config_data = getattr(dash_config, "config", None)
                         title = config_data.get("title", url_path) if config_data and isinstance(config_data, dict) else url_path
+                        require_admin = getattr(dash_config, "require_admin", False)
                         dashboards.append({
                             "url_path": url_path if url_path != "lovelace" else None,
                             "title": title,
                             "mode": getattr(dash_config, "mode", "storage") if hasattr(dash_config, "mode") else "storage",
                             "type": "lovelace",
+                            "require_admin": require_admin,
                         })
             # Fallback to old LOVELACE_DOMAIN method for compatibility
             elif LOVELACE_DOMAIN in self.hass.data:
@@ -121,21 +123,25 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
                     for url_path, dash_config in lovelace_data.dashboards.items():
                         config_data = getattr(dash_config, "config", None)
                         title = config_data.get("title", url_path) if config_data and isinstance(config_data, dict) else url_path
+                        require_admin = getattr(dash_config, "require_admin", False)
                         dashboards.append({
                             "url_path": url_path if url_path != "lovelace" else None,
                             "title": title,
                             "mode": getattr(dash_config, "mode", "storage") if hasattr(dash_config, "mode") else "storage",
                             "type": "lovelace",
+                            "require_admin": require_admin,
                         })
                 elif isinstance(lovelace_data, dict):
                     for url_path, dash_config in lovelace_data.items():
                         config_data = getattr(dash_config, "config", None) if dash_config else None
                         title = config_data.get("title", url_path) if config_data and isinstance(config_data, dict) else url_path
+                        require_admin = getattr(dash_config, "require_admin", False) if dash_config else False
                         dashboards.append({
                             "url_path": url_path if url_path != "lovelace" else None,
                             "title": title,
                             "mode": getattr(dash_config, "mode", "storage") if dash_config and hasattr(dash_config, "mode") else "storage",
                             "type": "lovelace",
+                            "require_admin": require_admin,
                         })
         except Exception as e:
             _LOGGER.exception("Error getting Lovelace dashboards: %s", e)
@@ -199,6 +205,7 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
                 "title": "Home",
                 "mode": "storage",
                 "type": "lovelace",
+                "require_admin": False,
             })
 
         _LOGGER.info("Detected %d dashboard(s): %s", len(dashboards), [d["title"] for d in dashboards])
@@ -235,9 +242,9 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
 
         dashboard_key = dashboard["url_path"] or "default"
 
-        # Frontend panels with require_admin are already protected
+        # Dashboards/panels with require_admin are already protected
         if dashboard.get("require_admin", False):
-            _LOGGER.debug("Dashboard %s requires admin, skipping check", dashboard_key)
+            _LOGGER.debug("Dashboard %s (%s) requires admin, skipping check", dashboard_key, dashboard.get("title"))
             return None
 
         # Try to get dashboard visibility settings
