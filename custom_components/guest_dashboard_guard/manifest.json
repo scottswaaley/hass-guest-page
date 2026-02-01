@@ -3,7 +3,7 @@
   "name": "Guest Dashboard Guard",
   "codeowners": [],
   "config_flow": true,
-  "documentation": "https://github.com/yourusername/hass-guest-dashboard-guard",
+  "documentation": "https://github.com/scottswaaley/hass-guest-page",
   "integration_type": "hub",
   "iot_class": "local_polling",
   "requirements": [],

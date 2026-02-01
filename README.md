@@ -23,7 +23,7 @@ A Home Assistant custom integration that monitors dashboard ownership to ensure 
 2. Click on "Integrations"
 3. Click the three dots in the top right corner
 4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/yourusername/hass-guest-dashboard-guard`
+5. Add this repository URL: `https://github.com/scottswaaley/hass-guest-page`
 6. Select category: "Integration"
 7. Click "Add"
 8. Find "Guest Dashboard Guard" in HACS and click "Download"
@@ -162,7 +162,7 @@ This project is licensed under the MIT License.
 ## Support
 
 If you encounter issues:
-1. Check the [Issues](https://github.com/yourusername/hass-guest-dashboard-guard/issues) page
+1. Check the [Issues](https://github.com/scottswaaley/hass-guest-page/issues) page
 2. Enable debug logging by adding to your `configuration.yaml`:
    ```yaml
    logger:
