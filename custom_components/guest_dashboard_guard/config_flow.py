@@ -95,10 +95,14 @@ class GuestDashboardGuardConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _get_users(self) -> list[dict[str, str]]:
         """Get list of users from Home Assistant."""
         users = []
-        user_collection = await self.hass.auth.async_get_users()
-        for user in user_collection:
-            if not user.system_generated:
-                users.append({"id": user.id, "name": user.name or user.id})
+        try:
+            await self.hass.async_add_executor_job(lambda: None)  # Ensure we have access
+            user_collection = await self.hass.auth.async_get_users()
+            for user in user_collection:
+                if not user.system_generated:
+                    users.append({"id": user.id, "name": user.name or user.id})
+        except Exception as e:
+            _LOGGER.error("Error getting users: %s", e)
         return users
 
 
@@ -123,8 +127,13 @@ class GuestDashboardGuardOptionsFlow(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data={})
 
         # Get list of users for the dropdown
-        users = await self._get_users()
-        user_options = {user["id"]: user["name"] for user in users}
+        try:
+            users = await self._get_users()
+            user_options = {user["id"]: user["name"] for user in users}
+        except Exception as e:
+            _LOGGER.exception("Failed to get users: %s", e)
+            errors["base"] = "cannot_connect"
+            user_options = {}
 
         current_data = self.config_entry.data
 
@@ -153,7 +162,7 @@ class GuestDashboardGuardOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_GUEST_USERS,
                     default=current_data.get(CONF_GUEST_USERS, []),
-                ): cv.multi_select(user_options),
+                ): cv.multi_select(user_options) if user_options else vol.In([]),
                 vol.Optional(
                     CONF_CHECK_INTERVAL,
                     default=current_data.get(CONF_CHECK_INTERVAL, DEFAULT_CHECK_INTERVAL),
@@ -170,8 +179,12 @@ class GuestDashboardGuardOptionsFlow(config_entries.OptionsFlow):
     async def _get_users(self) -> list[dict[str, str]]:
         """Get list of users from Home Assistant."""
         users = []
-        user_collection = await self.hass.auth.async_get_users()
-        for user in user_collection:
-            if not user.system_generated:
-                users.append({"id": user.id, "name": user.name or user.id})
+        try:
+            await self.hass.async_add_executor_job(lambda: None)  # Ensure we have access
+            user_collection = await self.hass.auth.async_get_users()
+            for user in user_collection:
+                if not user.system_generated:
+                    users.append({"id": user.id, "name": user.name or user.id})
+        except Exception as e:
+            _LOGGER.error("Error getting users: %s", e)
         return users
