@@ -145,10 +145,21 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
                 panels = self.hass.data[DATA_PANELS]
                 _LOGGER.debug("Found DATA_PANELS with %d panels", len(panels))
 
-                # Skip non-dashboard panels
+                # Skip non-dashboard panels (admin tools, add-ons, config panels)
                 skip_panels = {
                     'config', 'developer-tools', 'profile', 'media-browser',
-                    'logbook', 'history'  # Optional: can include map if you want
+                    'logbook', 'history', 'map',
+                    # Add-ons and config panels
+                    'hassio', 'supervisor',
+                }
+
+                # Panel component names that are dashboards (not admin tools)
+                dashboard_components = {
+                    'lovelace',  # Lovelace dashboards
+                    'energy',    # Energy dashboard
+                    'todo',      # Todo lists
+                    'frontend',  # Built-in frontend panels (home, lights, climate, security)
+                    'calendar',  # Calendar panel
                 }
 
                 for panel_key, panel in panels.items():
@@ -156,6 +167,18 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
                         continue
 
                     panel_info = panel.to_response()
+                    component_name = panel_info.get("component_name", "")
+
+                    # Only include panels that are actually dashboards
+                    # Skip add-ons (ha_addon_*), file editors, and other config tools
+                    if component_name.startswith("ha_addon_") or component_name == "hassio":
+                        _LOGGER.debug("Skipping add-on panel: %s (%s)", panel_key, panel_info.get("title"))
+                        continue
+
+                    # Only include known dashboard components
+                    if component_name not in dashboard_components:
+                        _LOGGER.debug("Skipping non-dashboard panel: %s (component: %s)", panel_key, component_name)
+                        continue
 
                     # Avoid duplicates with Lovelace dashboards
                     if not any(d.get("url_path") == panel_key for d in dashboards):
@@ -164,12 +187,25 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
                             "title": panel_info.get("title", panel_key),
                             "mode": "panel",
                             "type": "frontend_panel",
-                            "component_name": panel_info.get("component_name"),
+                            "component_name": component_name,
                             "require_admin": panel_info.get("require_admin", False),
                         })
-                        _LOGGER.debug("Added frontend panel: %s (%s)", panel_key, panel_info.get("title"))
+                        _LOGGER.debug("Added frontend panel: %s (%s, component: %s)", panel_key, panel_info.get("title"), component_name)
         except Exception as e:
             _LOGGER.exception("Error getting frontend panels: %s", e)
+
+        # Remove duplicates based on url_path (keep first occurrence)
+        seen_paths = set()
+        unique_dashboards = []
+        for dashboard in dashboards:
+            path_key = dashboard["url_path"]
+            if path_key not in seen_paths:
+                seen_paths.add(path_key)
+                unique_dashboards.append(dashboard)
+            else:
+                _LOGGER.debug("Skipping duplicate dashboard: %s (%s)", path_key, dashboard.get("title"))
+
+        dashboards = unique_dashboards
 
         # Always add at least the default dashboard if none found
         if not dashboards:
