@@ -210,7 +210,9 @@ class DashboardGuardCoordinator(DataUpdateCoordinator):
         # Try to get the dashboard config
         try:
             lovelace = self.hass.data.get(LOVELACE_DOMAIN, {})
-            config = lovelace.get(url_path or "lovelace")
+            # Use attribute access instead of dict .get() to avoid deprecation warning
+            config_key = url_path or "lovelace"
+            config = getattr(lovelace, config_key, None) if hasattr(lovelace, config_key) else lovelace.get(config_key) if isinstance(lovelace, dict) else None
 
             if config and hasattr(config, "config"):
                 views_config = config.config
