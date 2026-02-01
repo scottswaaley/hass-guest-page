@@ -151,9 +151,25 @@ If you're getting notifications for dashboards that shouldn't trigger alerts:
 3. Ensure you've restarted Home Assistant after installation
 4. Check that your Home Assistant version is compatible (2023.1+)
 
+## Updating
+
+### Via HACS
+1. HACS will automatically notify you when updates are available
+2. Go to **HACS** → **Integrations**
+3. Find "Guest Dashboard Guard"
+4. Click **Update**
+5. Restart Home Assistant
+
+### Manual Update
+1. Download the latest release from [GitHub Releases](https://github.com/scottswaaley/hass-guest-page/releases)
+2. Replace the `custom_components/guest_dashboard_guard` folder
+3. Restart Home Assistant
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+For maintainers, see [RELEASING.md](RELEASING.md) for the release process.
 
 ## License
 
